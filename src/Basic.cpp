@@ -9,6 +9,108 @@ using namespace std;
 #include "Basic.h"
 
 
+// taille maximale des buffers de texte pour le format BINARY.
+#define TEXT_BUFFER_SIZE 20
+
+//
+// convertir en base 2 sur 8 ou 16 bits
+// - suppression des évevntuels '0' avant de sortir la chaine.
+//
+char * ConvertDeciToBinary(WORD value_to_convert)
+{
+
+    static char binary_string[TEXT_BUFFER_SIZE+1];
+
+    char chaine_resu[TEXT_BUFFER_SIZE+1];
+
+    unsigned int indice=0;
+    unsigned int nbre_bit_to_work=0;
+    unsigned int valeur_tmp = 0;
+    unsigned int decalage_bits =0;
+
+  char * pch;
+
+    // remise à zero de toue la chaine, avnant de travailler avec.
+    for(indice=0 ; indice < TEXT_BUFFER_SIZE+1 ;  indice++)
+    {
+        chaine_resu[indice] = 0;
+        binary_string[indice] = 0;
+
+    }
+
+    // printf("value_to_convert= 0x%X ; %d \n\n",value_to_convert,value_to_convert);
+
+    valeur_tmp = value_to_convert;
+
+    // on travaille toujours 16 bits
+    nbre_bit_to_work = 16;
+
+    for(indice=0 ; indice < nbre_bit_to_work ;  indice++)
+    {
+        unsigned char bit_courant;
+
+         if ((valeur_tmp & 1) == 1)
+         {
+            bit_courant = '1';
+        }
+         else {
+          bit_courant = '0';
+         }
+         // inversion de l'ordre des bits directement à la creation
+         chaine_resu[nbre_bit_to_work-1-indice] = bit_courant;
+
+           valeur_tmp = ( valeur_tmp >> 1);
+    }
+    chaine_resu[indice+1] = 0; // pour le fin de chaine
+
+    // cas particulier avec 0
+    if (value_to_convert==0) {
+        strcpy(chaine_resu, "0");
+    }    // cas particulier avec 1
+    else if (value_to_convert == 1)
+    {
+       strcpy(chaine_resu, "1");
+    }
+    else // Cas de toutes les autres valeurs
+    {
+   // 1ere occurence du '1' dans la chaine
+     pch=strchr(chaine_resu,'1');
+
+    // on a trouvé un '1' dans la string
+      if (pch!=NULL)
+      {
+
+        decalage_bits = pch-chaine_resu;
+
+            // pas de décalage dans ce cas
+            if (decalage_bits==0)
+            {
+            // printf("PAS DE DECALAGE NECESSAIRE\n");
+            }
+            else
+            {
+                // decalage pour supprimer les '0' au début de la chaine.
+                // On prend aussi le \0 de fin string en C.
+                for(indice=0 ; indice < nbre_bit_to_work+1 ;  indice++)
+                {
+                chaine_resu[indice] = chaine_resu[indice+decalage_bits];
+                }
+            }
+
+      }else
+      {
+        // printf ("NOT found\n");
+       }
+    }
+
+      strcat(binary_string,chaine_resu);
+
+  return (binary_string);
+
+}
+//
+
+
 //static char ConvCpcFr[ 128 ] = " !\"#$%&'()*+,-./0123456789:;<=>?àABCDEFGHIJKLMNOPQRSTUVWXYZ[ç]^_`abcdefghijklmnopqrstuvwxyzéùè~";
 
 
@@ -38,8 +140,8 @@ static BYTE DproBasic[ 128 ] =
 
 BYTE GetByte( BYTE * BufFile, int Pos, int Deprotect )
 {
-	//BYTE b = ( BYTE )( BufFile[ Pos ] ^ ( DproBasic[ Pos & 0x7F ] * Deprotect ) );
-	//cout << "GetByte:"<<hex<<b<<endl;
+    //BYTE b = ( BYTE )( BufFile[ Pos ] ^ ( DproBasic[ Pos & 0x7F ] * Deprotect ) );
+    //cout << "GetByte:"<<hex<<b<<endl;
     return( BYTE )( BufFile[ Pos ] ^ ( DproBasic[ Pos & 0x7F ] * Deprotect ) );
 }
 
@@ -83,8 +185,8 @@ void Basic( BYTE * BufFile, char * Listing, bool IsBasic, bool CrLf )
     char * p;
     double f;
     int exp;
-	int Deprotect=0;
-	//cout << BufFile <<endl;
+    int Deprotect=0;
+    //cout << BufFile <<endl;
     static const char * Nbre[ 11 ] =
         {
         "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"
@@ -129,7 +231,7 @@ void Basic( BYTE * BufFile, char * Listing, bool IsBasic, bool CrLf )
     Token = GetByte( BufFile, 0, Deprotect );
     for ( ;; )
         {
-        	//cout << "Listing : " <<Listing << endl;
+            //cout << "Listing : " <<Listing << endl;
         if ( IsBasic )
             {
             int lg = GetWord( BufFile, Pos, Deprotect );
@@ -167,7 +269,7 @@ void Basic( BYTE * BufFile, char * Listing, bool IsBasic, bool CrLf )
                 if ( Token > 0x7F && Token < 0xFF )
                     {
                     // #### Traitement particulier du ':' avant le ELSE
-                    if (  Listing[ strlen( Listing ) - 1 ] == ':' 
+                    if (  Listing[ strlen( Listing ) - 1 ] == ':'
                        && Token == 0x97
                        )
                         Listing[ strlen( Listing ) - 1 ] = 0;
@@ -240,26 +342,29 @@ void Basic( BYTE * BufFile, char * Listing, bool IsBasic, bool CrLf )
                                     break;
 
                                 case 0x19 : // Constante entière 8 bits
-									sprintf(Listing+strlen(Listing),"%d",(BYTE)GetByte( BufFile, Pos, Deprotect)); 
+                                    sprintf(Listing+strlen(Listing),"%d",(BYTE)GetByte( BufFile, Pos, Deprotect));
                                     Pos++;
                                     break;
 
-                                case 0x1A :
-                                case 0x1E : // Constante entière 16 bits
-									sprintf(Listing+strlen(Listing),"%d",GetWord( BufFile, Pos, Deprotect));
+                                case 0x1A : // Constante entière 16 bits en DECIMAL.
+                                case 0x1E : // Numero de ligne ( aussi valeur entiere sur 16 bits )
+                                            // Pas de préfixe en BASIC
+                                    sprintf(Listing+strlen(Listing),"%d",GetWord( BufFile, Pos, Deprotect));
                                     Pos += 2;
                                     break;
 
-                                case 0x1B :
+                                case 0x1B : // Constante entière 16 bits en BINAIRE
+                                            // Debute avec &X en basic
                                     sprintf( Tmp
-                                           , "&X%X"
-                                           , GetWord( BufFile, Pos, Deprotect )
+                                           , "&X%s"
+                                           , ConvertDeciToBinary(GetWord( BufFile, Pos, Deprotect ))
                                            );
                                     strcat( Listing, Tmp );
                                     Pos += 2;
                                     break;
 
-                                case 0x1C :
+                                case 0x1C : // Constante entière 16 bits en HEXADECIMAL
+                                            // Debute avec & en basic
                                     sprintf( Tmp
                                            , "&%X"
                                            , GetWord( BufFile, Pos, Deprotect )
@@ -352,8 +457,8 @@ void Basic( BYTE * BufFile, char * Listing, bool IsBasic, bool CrLf )
 
       for ( int i = strlen( Listing); i--; )
         {
-        	//cout << i << " ";
-        
-            if ( ! isprint(Listing[ i ]) &&  Listing[ i ] != '\n' && Listing[ i ] != '\r'  ) Listing[ i ] = '?';  
+            //cout << i << " ";
+
+            if ( ! isprint(Listing[ i ]) &&  Listing[ i ] != '\n' && Listing[ i ] != '\r'  ) Listing[ i ] = '?';
         }
 }
